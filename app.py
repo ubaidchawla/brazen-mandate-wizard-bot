@@ -3,7 +3,8 @@ import gspread
 from dotenv import load_dotenv
 from oauth2client.service_account import ServiceAccountCredentials
 from anthropic import Anthropic
-from slack_sdk import WebClient
+from slack_bolt import App
+from slack_bolt.adapter.socket_mode import SocketModeHandler
 from slack_sdk.errors import SlackApiError
 
 # Load environment variables from .env file
@@ -11,11 +12,12 @@ load_dotenv()
 
 # Initialize Anthropic client
 anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
-client = Anthropic(api_key=anthropic_api_key)
+anthropic_client = Anthropic(api_key=anthropic_api_key)
 
-# Initialize Slack client
-slack_token = os.getenv("SLACK_API_TOKEN")
-slack_client = WebClient(token=slack_token)
+# Initialize Slack Bolt App
+slack_bot_token = os.getenv("SLACK_BOT_TOKEN")
+slack_app_token = os.getenv("SLACK_APP_TOKEN")
+app = App(token=slack_bot_token)
 
 def get_google_sheet_data(spreadsheet_id, sheet_name):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets.readonly"]
@@ -26,34 +28,21 @@ def get_google_sheet_data(spreadsheet_id, sheet_name):
     data = sheet.get_all_records()
     return data
 
-def post_message_to_slack(channel_id, text):
-    try:
-        slack_client.chat_postMessage(
-            channel=channel_id,
-            text=text
-        )
-        print("Message chunk posted to Slack successfully.")
-    except SlackApiError as e:
-        print(f"Error posting message chunk to Slack: {e.response['error']}")
-
-def main():
+def generate_report():
     # Configuration from environment variables
     spreadsheet_id = os.getenv("SPREADSHEET_ID")
     sheet_name = os.getenv("SHEET_NAME")
     prompt_spreadsheet_id = os.getenv("PROMPT_SPREADSHEET_ID")
     prompt_sheet_name = os.getenv("PROMPT_SHEET_NAME")
-    slack_channel = os.getenv("SLACK_CHANNEL_ID")
 
     # Fetch data
     sheet_data = get_google_sheet_data(spreadsheet_id, sheet_name)
     prompt_sheet_data = get_google_sheet_data(prompt_spreadsheet_id, prompt_sheet_name)
 
     if prompt_sheet_data:
-        # Convert sheet_data to a string (you may want to format this better)
         sheet_data_str = str(sheet_data)
 
-        # Create a prompt message
-        message = client.messages.create(
+        message = anthropic_client.messages.create(
             model="claude-3-5-sonnet-20240620",
             max_tokens=1000,
             temperature=0,
@@ -66,17 +55,36 @@ def main():
             ]
         )
 
-        # Extract the message content from the response
         response_text = message.content[0].text
-
-        # Split the response into chunks of 3000 characters or less
-        chunks = [response_text[i:i+3000] for i in range(0, len(response_text), 3000)]
-
-        # Send each chunk to Slack
-        for chunk in chunks:
-            post_message_to_slack(slack_channel, chunk)
+        return response_text
     else:
-        print("Failed to fetch data from Google Sheets.")
+        return "Failed to fetch data from Google Sheets."
+
+@app.event("app_mention")
+def handle_mention(event, say, client):
+    text = event["text"]
+    if "report" in text.lower():
+        # Send the initial "waiting" message and capture its timestamp
+        result = say("Generating report... Please wait.")
+        waiting_message_ts = result['ts']
+        
+        # Generate the report
+        report = generate_report()
+        
+        try:
+            # Delete the "waiting" message
+            client.chat_delete(
+                channel=event['channel'],
+                ts=waiting_message_ts
+            )
+        except SlackApiError as e:
+            print(f"Error deleting message: {e}")
+
+        # Send the report in chunks
+        chunks = [report[i:i+3000] for i in range(0, len(report), 3000)]
+        for chunk in chunks:
+            say(chunk)
 
 if __name__ == "__main__":
-    main()
+    handler = SocketModeHandler(app, slack_app_token)
+    handler.start()

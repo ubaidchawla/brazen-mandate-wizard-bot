@@ -1,5 +1,6 @@
-anthropic==0.4.3
-gspread==5.9.0
-oauth2client==4.1.3
-python-dotenv==1.0.0
-slack-sdk==3.21.0
+anthropic
+gspread
+oauth2client
+python-dotenv
+slack-sdk
+slack_bolt
