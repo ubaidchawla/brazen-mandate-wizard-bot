@@ -1,0 +1,9 @@
+# Ignore the .env file to prevent sensitive data from being included in the image
+.env
+
+# Ignore Python cache files
+__pycache__/
+*.pyc
+
+# Ignore any virtual environments
+venv/

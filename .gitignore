@@ -1,0 +1,51 @@
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+.venv/
+
+# Environment variables file
+.env
+
+# Docker-related files
+*.log
+docker-compose.yml
+
+# Python-specific files
+*.pdb
+*.egg
+*.egg-info
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+*.manifest
+*.spec
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# PyCharm
+.idea/
+
+# Logs
+*.log
+*.out
+*.err
+
+#Google Sheets Service Account file
+brazen-mandate-wizard-service-account.json
