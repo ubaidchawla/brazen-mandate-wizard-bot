@@ -26,22 +26,27 @@ This project integrates Google Sheets with Slack and Anthropic's API to fetch da
 
 
 2. **Set Up the Environment Variables:**
-
-ANTHROPIC_API_KEY=your_anthropic_api_key
-SLACK_API_TOKEN=your_slack_api_token
-SPREADSHEET_ID=your_spreadsheet_id
-SHEET_NAME=your_sheet_name
-PROMPT_SPREADSHEET_ID=your_prompt_spreadsheet_id
-PROMPT_SHEET_NAME=your_prompt_sheet_name
-SLACK_CHANNEL_ID=your_slack_channel_id
-GOOGLE_SHEET_CREDENTIALS=service-account.json
-
+    ```env
+    ANTHROPIC_API_KEY=your_anthropic_api_key
+    SLACK_API_TOKEN=your_slack_api_token
+    SPREADSHEET_ID=your_spreadsheet_id
+    SHEET_NAME=your_sheet_name
+    PROMPT_SPREADSHEET_ID=your_prompt_spreadsheet_id
+    PROMPT_SHEET_NAME=your_prompt_sheet_name
+    SLACK_CHANNEL_ID=your_slack_channel_id
+    GOOGLE_SHEET_CREDENTIALS=service-account.json
+    ```
 3. **Google Sheets API Credentials**
 Ensure you have the Google Sheets API credentials file in the project directory.
 
 4. **Build and Run with Docker**
     1. Build the Docker Image
+    ```bash
         docker build -t my-python-app .
+    ```
+        
     2. Run the Docker Container
+        ```bash
         docker run --env-file .env my-python-app
+        ```
 
