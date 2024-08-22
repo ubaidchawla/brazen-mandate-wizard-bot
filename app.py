@@ -5,7 +5,8 @@ from oauth2client.service_account import ServiceAccountCredentials
 from anthropic import Anthropic
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-from slack_sdk.errors import SlackApiError
+from datetime import datetime, timedelta, date
+from dateutil import parser
 
 # Load environment variables from .env file
 load_dotenv()
@@ -19,7 +20,7 @@ slack_bot_token = os.getenv("SLACK_BOT_TOKEN")
 slack_app_token = os.getenv("SLACK_APP_TOKEN")
 app = App(token=slack_bot_token)
 
-def get_google_sheet_data(spreadsheet_id, sheet_name):
+def get_prompt_sheet_data(spreadsheet_id, sheet_name):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets.readonly"]
     creds_file = os.getenv("GOOGLE_SHEET_CREDENTIALS")
     creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file, scope)
@@ -27,6 +28,40 @@ def get_google_sheet_data(spreadsheet_id, sheet_name):
     sheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
     data = sheet.get_all_records()
     return data
+
+def get_google_sheet_data(spreadsheet_id, sheet_name):
+    scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets.readonly"]
+    creds_file = os.getenv("GOOGLE_SHEET_CREDENTIALS")
+    creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file, scope)
+    client = gspread.authorize(creds)
+    sheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
+    data = sheet.get_all_records()
+
+    # Filter data for the last 7 days
+    today = date.today()
+    seven_days_ago = today - timedelta(days=7)
+    filtered_data = []
+
+    for row in data:
+        submitted_at = row.get('Submitted At')
+        if submitted_at:
+            try:
+                # Parse the date from the string and ignore the time
+                submitted_date = datetime.strptime(submitted_at.split()[0], '%d/%m/%Y').date()
+
+                print(f"seven_days_ago: {seven_days_ago}")
+                print(f"submitted_date: {submitted_date}")
+
+                # Compare the parsed date with the seven_days_ago date
+                if seven_days_ago <= submitted_date <= today:
+                    print("YES!!")
+                    filtered_data.append(row)
+            except ValueError as e:
+                print(f"Error parsing date: {submitted_at}. Error: {e}")
+                continue
+
+    print(f"filtered_data: {filtered_data}")
+    return filtered_data
 
 def generate_report():
     # Configuration from environment variables
@@ -37,7 +72,7 @@ def generate_report():
 
     # Fetch data
     sheet_data = get_google_sheet_data(spreadsheet_id, sheet_name)
-    prompt_sheet_data = get_google_sheet_data(prompt_spreadsheet_id, prompt_sheet_name)
+    prompt_sheet_data = get_prompt_sheet_data(prompt_spreadsheet_id, prompt_sheet_name)
 
     if prompt_sheet_data:
         sheet_data_str = str(sheet_data)

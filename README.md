@@ -42,11 +42,11 @@ Ensure you have the Google Sheets API credentials file in the project directory.
 4. **Build and Run with Docker**
     1. Build the Docker Image
     ```bash
-        docker build -t my-python-app .
+        docker build -t bmw-bot .
     ```
         
     2. Run the Docker Container
         ```bash
-        docker run --env-file .env my-python-app
+        docker run -d --env-file .env --name bmw-bot-container bmw-bot
         ```
 
