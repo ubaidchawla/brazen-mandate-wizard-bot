@@ -16,8 +16,8 @@ anthropic_api_key = os.getenv("ANTHROPIC_API_KEY")
 anthropic_client = Anthropic(api_key=anthropic_api_key)
 
 # Initialize Slack Bolt App
-slack_bot_token = os.getenv("SLACK_BOT_TOKEN")
-slack_app_token = os.getenv("SLACK_APP_TOKEN")
+slack_bot_token = os.getenv("BOT_TOKEN")
+slack_app_token = os.getenv("APP_TOKEN")
 app = App(token=slack_bot_token)
 def parse_system_prompts(prompt_sheet_data):
     system_prompts = "\n".join([row['system_prompts'] for row in prompt_sheet_data if 'system_prompts' in row])
