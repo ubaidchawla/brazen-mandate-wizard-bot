@@ -19,6 +19,10 @@ anthropic_client = Anthropic(api_key=anthropic_api_key)
 slack_bot_token = os.getenv("SLACK_BOT_TOKEN")
 slack_app_token = os.getenv("SLACK_APP_TOKEN")
 app = App(token=slack_bot_token)
+def parse_system_prompts(prompt_sheet_data):
+    system_prompts = "\n".join([row['system_prompts'] for row in prompt_sheet_data if 'system_prompts' in row])
+    return system_prompts
+
 
 def get_prompt_sheet_data(spreadsheet_id, sheet_name):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets.readonly"]
@@ -26,9 +30,18 @@ def get_prompt_sheet_data(spreadsheet_id, sheet_name):
     creds = ServiceAccountCredentials.from_json_keyfile_name(creds_file, scope)
     client = gspread.authorize(creds)
     sheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
-    data = sheet.get_all_records()
-    return data
-
+    
+    # Get all records
+    all_records = sheet.get_all_records()
+    
+    # Filter records until a None row is encountered
+    filtered_records = []
+    for row in all_records:
+        if all(value is None or value == '' for value in row.values()):
+            break
+        filtered_records.append(row)
+    
+    return filtered_records
 def get_google_sheet_data(spreadsheet_id, sheet_name):
     scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/spreadsheets.readonly"]
     creds_file = os.getenv("GOOGLE_SHEET_CREDENTIALS")
@@ -36,32 +49,7 @@ def get_google_sheet_data(spreadsheet_id, sheet_name):
     client = gspread.authorize(creds)
     sheet = client.open_by_key(spreadsheet_id).worksheet(sheet_name)
     data = sheet.get_all_records()
-
-    # Filter data for the last 7 days
-    today = date.today()
-    seven_days_ago = today - timedelta(days=7)
-    filtered_data = []
-
-    for row in data:
-        submitted_at = row.get('Submitted At')
-        if submitted_at:
-            try:
-                # Parse the date from the string and ignore the time
-                submitted_date = datetime.strptime(submitted_at.split()[0], '%d/%m/%Y').date()
-
-                print(f"seven_days_ago: {seven_days_ago}")
-                print(f"submitted_date: {submitted_date}")
-
-                # Compare the parsed date with the seven_days_ago date
-                if seven_days_ago <= submitted_date <= today:
-                    print("YES!!")
-                    filtered_data.append(row)
-            except ValueError as e:
-                print(f"Error parsing date: {submitted_at}. Error: {e}")
-                continue
-
-    print(f"filtered_data: {filtered_data}")
-    return filtered_data
+    return data
 
 def generate_report():
     # Configuration from environment variables
@@ -73,19 +61,22 @@ def generate_report():
     # Fetch data
     sheet_data = get_google_sheet_data(spreadsheet_id, sheet_name)
     prompt_sheet_data = get_prompt_sheet_data(prompt_spreadsheet_id, prompt_sheet_name)
+    system_prompts = parse_system_prompts(prompt_sheet_data)
 
+    print('prompt_sheet_data_all',prompt_sheet_data) 
     if prompt_sheet_data:
         sheet_data_str = str(sheet_data)
-
+        
+        print('prompt_sheet_data', system_prompts)        
         message = anthropic_client.messages.create(
             model="claude-3-5-sonnet-20240620",
             max_tokens=1000,
             temperature=0,
-            system=prompt_sheet_data[0]['system_prompts'],
+            system=system_prompts,
             messages=[
                 {
                     "role": "user",
-                    "content": f"Please give a summary for this data: {sheet_data_str}"
+                    "content": f"Please give key take aways for this data: {sheet_data_str}"
                 }
             ]
         )
